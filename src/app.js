@@ -2,17 +2,20 @@ const express = require('express');
 
 const app = express();
 
-
-app.use("/hello",(req,res)=>{
-    res.send("Hello world from Node.js!");
+app.get("/user",(req,res)=>{
+    res.send({firstName: "John", lastName: "Doe"});
 })
 
-app.use("/test",(req,res)=>{
-    res.send("Hello world from the browser!");
+app.post("/user",(req,res)=>{
+    res.send("data successfully sent to the database!");
 });
 
-app.use("/",(req, res)=>{
-    res.status(404).send("Page not found");
+app.delete("/user",(req,res)=>{
+    res.send("User deleted successfully!");
+});
+
+app.use("/test",(req,res)=>{
+    res.send("Hello world from the testing in browser!");
 });
 
 app.listen(3000, ()=>{
