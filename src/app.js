@@ -3,24 +3,27 @@ const connectDB = require("./config/database.js");
 const User = require("./models/user.js");
 const bcrypt = require("bcrypt");
 const app = express();
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 const { validateSignUpData, validateEmail } = require("./utils/validation.js");
-
+const { userAuth } = require("./middlewares/auth.js");
 app.use(express.json());
+app.use(cookieParser());
 app.post('/signup', async (req, res) => {
     //Validate data 
     try {
         validateSignUpData(req);
-        const {password} = req.body;
+        const { password } = req.body;
         //Encrypt the password
         const passwordHash = await bcrypt.hash(password, 10);
         //Creating a new user
         const user = new User({
-            firstName : req.body.firstName,
-            lastName : req.body.lastName,
-            emailId : req.body.emailId,
-            password : passwordHash,
-            age : req.body.age,
-            gender : req.body.gender,
+            firstName: req.body.firstName,
+            lastName: req.body.lastName,
+            emailId: req.body.emailId,
+            password: passwordHash,
+            age: req.body.age,
+            gender: req.body.gender,
             photoURL: req.body.photoURL,
             about: req.body.about,
             skills: req.body.skills
@@ -35,28 +38,50 @@ app.post('/signup', async (req, res) => {
     }
 });
 
-app.post("/login" , async(req,res) => {
-    try{
+app.post("/login", async (req, res) => {
+    try {
         validateEmail(req);
-        const {emailId, password} = req.body;
-        const user = await User.findOne({emailId: emailId});
-        if(!user){ 
+        const { emailId, password } = req.body;
+        const user = await User.findOne({ emailId: emailId });
+        if (!user) {
             throw new Error("Invalid Credentials");
         }
         const isPasswordValid = await bcrypt.compare(password, user.password);
-        if(isPasswordValid){
+        if (isPasswordValid) {
+
+            //Create a JWT token
+            const token = jwt.sign({ _id: user._id }, "DEV@Tinder$790",{expiresIn: "1d"});
+
+            //Add the token to cookie and send response back to the user
+            res.cookie("token", token, { expires: new Date(Date.now()+ 8*360000)});
             res.send("Login Successful");
         }
-        else{
+        else {
             throw new Error("Invalid Password");
         }
     }
-    catch(error){
+    catch (error) {
         res.status(400).send(error.message);
+    }
+});
+
+app.get("/profile", userAuth, async (req, res) => {
+    try {
+        const user = req.user;
+        res.send(user);
+    }
+    catch (error) {
+        res.status(404).send(error.message);
     }
 })
 
-app.get("/user", async (req, res) => {
+app.post("/sendConnectionRequest", userAuth, async (req, res) => {
+    const user = req.user;
+    res.send("Connection Request Sent");
+    console.log(user.firstName+" "+user.lastName+" sent the connection request");
+})
+
+app.get("/user", userAuth, async (req, res) => {
     const email = req.body.emailId;
     try {
         const user = await User.find({ emailId: email });
