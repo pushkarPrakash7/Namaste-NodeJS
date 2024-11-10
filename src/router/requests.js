@@ -1,10 +1,69 @@
 const express = require('express');
 const requestRouter = express.Router();
 const { userAuth } = require("../middlewares/auth.js");
+const connectionRequest = require("../models/connectionRequest.js");
+const User = require("../models/user.js");
 requestRouter.post("/sendConnectionRequest", userAuth, async (req, res) => {
     const user = req.user;
     res.send("Connection Request Sent");
-    console.log(user.firstName+" "+user.lastName+" sent the connection request");
+    console.log(user.firstName + " " + user.lastName + " sent the connection request");
 })
 
+//Route to only send interested or ignored
+requestRouter.post("/request/send/:status/:toUserId", userAuth, async (req, res) => {
+    try {
+        const fromUserId = req.user._id;
+        const toUserId = req.params.toUserId;
+        const status = req.params.status;
+
+        const ALLOWED_STATUS = ['ignored', 'interested'];
+        if (!ALLOWED_STATUS.includes(status)) {
+            return res.status(404).json({
+                message: "Invalid status type: " + status
+            })
+        }
+        const toUser = await User.findById({_id: toUserId});
+        if(!toUser) {
+            return res.status(404).json({
+                message: "User not found"
+            })
+        }
+
+
+        //check if there is an existing request in the Datbase
+        const existingRequest = await connectionRequest.findOne({
+            $or: [
+                {
+                    fromUserId: fromUserId,
+                    toUserId: toUserId
+                },
+                {
+                    fromUserId: toUserId,
+                    toUserId: fromUserId
+                }
+            ],
+        });
+
+        if(existingRequest){
+            return res.status(404).json({
+                message: "Request already sent"
+            })
+        }
+
+        const connection = new connectionRequest({
+            fromUserId,
+            toUserId,
+            status
+        });
+        const data = await connection.save();
+        res.json({
+            message: req.user.firstName + "is " + status + " in "+ toUser.lastName,
+            data
+        });
+    }
+    catch (err) {
+        res.status(404).send(err.message);
+    }
+    res.send("Interest sent successfully");
+})
 module.exports = requestRouter;

@@ -21,4 +21,16 @@ const validateEmail = (req) =>{
     }
 }
 
-module.exports = {validateSignUpData, validateEmail};
+const validatePassword = (req) =>{
+    const isStrongPassword = validator.isStrongPassword(req);
+    return isStrongPassword
+}
+
+const validateUserProfileUpdate = (req) =>{
+    const allowedFields = ["firstName", "lastName", "emailId", "photoURL", "gender", "about", "skills" ]
+
+    const isEditAllowed = Object.keys(req.body).every((field) => allowedFields.includes(field));
+    return isEditAllowed;
+}
+
+module.exports = {validateSignUpData, validateEmail, validateUserProfileUpdate, validatePassword};
