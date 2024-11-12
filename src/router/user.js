@@ -3,6 +3,10 @@ const userRouter = express.Router();
 const { userAuth } = require("../middlewares/auth.js");
 const User = require("../models/user.js");
 const connectionRequest = require("../models/connectionRequest.js");
+
+
+const USER_SAFE_DATA = "firstName lastName photoURL age gender about skills"
+
 userRouter.get("/user", userAuth, async (req, res) => {
     const email = req.body.emailId;
     try {
@@ -58,18 +62,32 @@ userRouter.get("/user/connections", userAuth, async (req, res) => {
     }
 })
 
-userRouter.get("/feed", async (req, res) => {
+userRouter.get("/feed", userAuth, async (req, res) => {
     try {
-        const user = await User.find({});
-        if (user.length === 0) {
-            res.status(404).send("No users available in the database");
-        }
-        else {
-            res.send(user);
-        }
+        // Avoid: user should all the users card except his own card.
+        // Avoid card of connections who has accepted his connection requests.
+        // not see people whose cards have been ignored or accepted by akshay
+        const loggedInUser = req.user;
+        //Find all the connection Requests that I have sent or received
+        const ConnectionRequest = await connectionRequest.find({ $or: [{ fromUserId: loggedInUser._id }, { toUserId: loggedInUser._id }] }).select("fromUserId toUserId");
+
+        const hideUsersFromFeed = new Set();
+        ConnectionRequest.forEach((req) => {
+            hideUsersFromFeed.add(req.fromUserId.toString());
+            hideUsersFromFeed.add(req.toUserId.toString());
+        });
+
+        const users = await User.find({
+            $and: [
+                { _id: { $nin: Array.from(hideUsersFromFeed) } },
+                { _id: { $ne: loggedInUser._id } }
+            ]
+        }).select(USER_SAFE_DATA);
+        
+        res.send(users);
     }
     catch (error) {
-        res.status(500).send(error.message);
+        res.status(404).send(error.message);
     }
 });
 

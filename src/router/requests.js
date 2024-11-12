@@ -57,7 +57,7 @@ requestRouter.post("/request/send/:status/:toUserId", userAuth, async (req, res)
         });
         const data = await connection.save();
         res.json({
-            message: req.user.firstName + "is " + status + " in "+ toUser.lastName,
+            message: req.user.firstName + " is " + status + " in "+ toUser.firstName,
             data
         });
     }
