@@ -1,7 +1,8 @@
 const express = require("express");
 const userRouter = express.Router();
-const {userAuth} = require("../middlewares/auth.js");
+const { userAuth } = require("../middlewares/auth.js");
 const User = require("../models/user.js");
+const connectionRequest = require("../models/connectionRequest.js");
 userRouter.get("/user", userAuth, async (req, res) => {
     const email = req.body.emailId;
     try {
@@ -16,6 +17,46 @@ userRouter.get("/user", userAuth, async (req, res) => {
         res.status(404).send(error.message);
     }
 });
+
+//Get all the pending connection Request for the logged In user
+userRouter.get("/user/requests", userAuth, async (req, res) => {
+    try {
+        const loggedInUser = req.user;
+
+        const data = await connectionRequest.find({ toUserId: loggedInUser._id, status: "interested" }).populate("fromUserId", ["firstName", "lastName", "photoURL", "age", "gender"]);
+        res.json({
+            message: "data fetched Successfully",
+            data
+        });
+    }
+    catch (error) {
+        res.status(500).send(error.message);
+    }
+});
+
+//Get all the data of people connected to the loggedIn User
+userRouter.get("/user/connections", userAuth, async (req, res) => {
+    try {
+        const loggedInUser = req.user;
+
+        const connections = await connectionRequest.find({ $or: [{ fromUserId: loggedInUser._id, status: "accepted" }, { toUserId: loggedInUser._id }], status: "accepted" }).populate("fromUserId", ["firstName", "lastName", "photoURL", "age", "gender"]).populate("toUserId", ["firstName", "lastName", "photoURL", "age", "gender"]);
+        const data = connections.map((row) => {
+            if (row.fromUserId._id.toString() === loggedInUser._id.toString()) {
+                return row.toUserId
+            }
+            else {
+                return row.fromUserId
+            }
+        });
+        res.json({
+            message: "data fetched successfully",
+            data: data
+        });
+    }
+    catch (error) {
+        res.status(404).send(error.message);
+    }
+})
 
 userRouter.get("/feed", async (req, res) => {
     try {

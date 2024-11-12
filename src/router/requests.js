@@ -94,11 +94,11 @@ requestRouter.post("/request/review/:status/:requestId", userAuth, async(req, re
         }
 
         connection.status = status;
-        connection.save();
+        const data = await connection.save();
 
         res.json({
             message : "Connection Request "+status,
-            data: connection
+            data
         });
     }
     catch(err){
